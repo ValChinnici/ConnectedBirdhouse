@@ -1,0 +1,86 @@
+#include <TinkerKit.h>
+#include <Bridge.h>
+#include <HttpClient.h>
+
+TKAnalog psensor(I0); //proximity infrared sensor
+
+int zeroval = 0;
+int weight = 0;
+int sensVal;
+int message = 0;
+
+int lastMessage = 0;
+
+HttpClient client;
+String host;
+void setup() {
+Bridge.begin();
+Console.begin();
+//while (!Console){
+//; // wait for Console port to connect.
+//}
+
+zeroval = smoothRead();
+host = resolveBonjour(“arduino146f.local”);
+Console.println(host);
+
+}
+
+void loop() {
+sensVal = smoothRead();
+weight = sensVal - zeroval;
+weight = constrain(weight, 0, 80);
+
+message = map(weight, 0, 80, 0, 4);
+
+if (message != lastMessage) {
+//print the values of the sensor
+Console.print(“Weight = “);
+Console.println(message);
+
+
+String url = “http://”;
+url.concat(host);
+url.concat(“/arduino/msg/”);
+url.concat(message);
+
+Console.println(url); 
+
+client.get(url);
+
+while (client.available()) {
+char c = client.read();
+}
+
+
+lastMessage = message;
+}
+delay(20);
+
+}
+
+
+int smoothRead() {
+int val = 0;
+
+for (int i = 0; i < 20; i++) {
+val = val + psensor.read();
+delay(5);
+}
+val = val / 20;
+return val;
+}
+
+String resolveBonjour(String hostname) {
+
+Process getIpAddr; // initialize a new process
+String command = “avahi-resolve —name “;
+command.concat(hostname);
+command.concat(” | cut -c19-“);
+
+String address;
+getIpAddr.runShellCommand(command); // command you want to run
+
+String ip = client.readStringUntil(‘\n’);
+return ip;
+}
